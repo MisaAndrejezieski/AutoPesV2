@@ -1,0 +1,24 @@
+{
+  "idioma": "pt",
+  "timeouts": {
+    "abrir_navegador": 3,
+    "entre_teclas": 0.05,
+    "minimo_pagina": 8,
+    "entre_pesquisas": [5, 10],
+    "tentativas": 3
+  },
+  "temas": [
+    "tecnologia",
+    "saude",
+    "educacao",
+    "esportes",
+    "ciencia",
+    "musica"
+  ],
+  "perguntas": [
+    "O que é {tema}?",
+    "Ultimas noticias sobre {tema}",
+    "Impacto do {tema} na sociedade",
+    "Futuro do {tema}"
+  ]
+}
