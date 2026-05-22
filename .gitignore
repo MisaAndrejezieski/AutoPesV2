@@ -1,0 +1,14 @@
+# Ambiente virtual
+.venv/
+
+# Arquivos gerados
+data/
+*.log
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
