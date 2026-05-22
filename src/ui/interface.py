@@ -102,7 +102,7 @@ class Interface:
                 bg=self.cores['bg_card'], fg=self.cores['neon_pink']).pack(pady=(12, 12))
         
         btn_frame = tk.Frame(control_card, bg=self.cores['bg_card'])
-        btn_frame.pack(pady=8, pb=12)
+        btn_frame.pack(pady=8)
         
         self.btn_iniciar = tk.Button(btn_frame, text="▶ INICIAR", 
                                      command=self.iniciar,
@@ -120,6 +120,8 @@ class Interface:
                                    relief='flat', cursor='hand2',
                                    state='disabled')
         self.btn_parar.pack(side='left', padx=10)
+        
+        tk.Frame(control_card, bg=self.cores['bg_card'], height=12).pack()
         
         # ===== CARD LOG =====
         log_card = tk.Frame(content, bg=self.cores['bg_card'])
