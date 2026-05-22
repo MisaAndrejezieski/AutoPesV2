@@ -1,6 +1,5 @@
 """
-Interface gráfica com psicologia das cores
-Design moderno, limpo e agradável
+Interface gráfica com psicologia das cores - Versão corrigida
 """
 
 import tkinter as tk
@@ -22,21 +21,18 @@ class Interface:
         
         # Cores psicologicamente agradáveis
         self.cores = {
-            'fundo': '#F8F9FA',        # Branco suave - calma
-            'primary': '#4361EE',      # Azul vibrante - confiança
-            'success': '#06D6A0',      # Verde menta - sucesso
-            'danger': '#EF476F',        # Rosa suave - atenção
-            'warning': '#FFD166',       # Amarelo - energia
-            'dark': '#2B2D42',          # Azul escuro - elegância
-            'gray': '#8D99AE',          # Cinza - neutro
-            'light': '#EDF2F4',         # Cinza claro - organização
+            'fundo': '#F8F9FA',
+            'primary': '#4361EE',
+            'success': '#06D6A0',
+            'danger': '#EF476F',
+            'warning': '#FFD166',
+            'dark': '#2B2D42',
+            'gray': '#8D99AE',
+            'light': '#EDF2F4',
             'white': '#FFFFFF',
-            'gradient_start': '#4361EE',
-            'gradient_end': '#7209B7'
         }
         
         self.root.configure(bg=self.cores['fundo'])
-        self.root.option_add('*Font', 'Segoe UI 10')
         
         # Centralizar na tela
         self.root.eval('tk::PlaceWindow . center')
@@ -80,19 +76,11 @@ class Interface:
         input_frame.pack_propagate(False)
         
         # Spinbox estilizado
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('Custom.TSpinbox', 
-                       fieldbackground=self.cores['white'],
-                       background=self.cores['white'],
-                       foreground=self.cores['dark'],
-                       arrowcolor=self.cores['primary'],
-                       bordercolor=self.cores['light'],
-                       lightcolor=self.cores['light'],
-                       darkcolor=self.cores['light'])
-        
-        spinbox = ttk.Spinbox(input_frame, from_=from_, to=to, width=10,
-                              font=('Segoe UI', 12), style='Custom.TSpinbox')
+        spinbox = tk.Spinbox(input_frame, from_=from_, to=to, width=10,
+                             font=('Segoe UI', 12),
+                             bg=self.cores['white'], fg=self.cores['dark'],
+                             relief='flat', highlightthickness=0,
+                             buttonbackground=self.cores['primary'])
         spinbox.pack(pady=8, padx=10, anchor='w')
         spinbox.delete(0, 'end')
         spinbox.insert(0, default_value)
@@ -100,12 +88,11 @@ class Interface:
         return spinbox
     
     def criar_botao(self, parent, texto, comando, tipo='primary', estado='normal'):
-        """Cria botão estilizado com psicologia das cores"""
+        """Cria botão estilizado"""
         cores = {
             'primary': {'bg': self.cores['primary'], 'hover': '#3A56D4', 'fg': self.cores['white']},
             'success': {'bg': self.cores['success'], 'hover': '#05B58C', 'fg': self.cores['dark']},
             'danger': {'bg': self.cores['danger'], 'hover': '#D63E62', 'fg': self.cores['white']},
-            'warning': {'bg': self.cores['warning'], 'hover': '#E6BC40', 'fg': self.cores['dark']}
         }
         
         cor = cores.get(tipo, cores['primary'])
@@ -117,7 +104,6 @@ class Interface:
                        relief='flat', cursor='hand2',
                        state=estado)
         
-        # Efeito hover
         def on_enter(e):
             if btn['state'] == 'normal':
                 btn.configure(bg=cor['hover'])
@@ -132,7 +118,7 @@ class Interface:
         return btn
     
     def setup_widgets(self):
-        # Container principal com padding
+        # Container principal
         main = tk.Frame(self.root, bg=self.cores['fundo'])
         main.pack(fill='both', expand=True, padx=20, pady=20)
         
@@ -140,17 +126,16 @@ class Interface:
         header = tk.Frame(main, bg=self.cores['fundo'])
         header.pack(fill='x', pady=(0, 20))
         
-        # Frame do logo/título
         logo_frame = tk.Frame(header, bg=self.cores['fundo'])
         logo_frame.pack()
         
-        # Ícone animado (emoji)
+        # Ícone
         self.icon_label = tk.Label(logo_frame, text="🤖", 
-                                   font=('Segoe UI Emoji', 52),
+                                   font=('Segoe UI', 52),
                                    bg=self.cores['fundo'])
         self.icon_label.pack()
         
-        # Título principal
+        # Título
         tk.Label(logo_frame, text="AutoPes V2", 
                 font=('Segoe UI', 28, 'bold'),
                 bg=self.cores['fundo'], fg=self.cores['dark']).pack()
@@ -160,32 +145,46 @@ class Interface:
                 font=('Segoe UI', 11),
                 bg=self.cores['fundo'], fg=self.cores['gray']).pack(pady=(5, 0))
         
-        # ===== CARD DE CONFIGURAÇÕES =====
+        # ===== CARD CONFIGURAÇÕES =====
         config_card = self.criar_card(main, "⚙️ Configurações", self.cores['primary'])
         
-        # Grid de inputs (2 colunas)
         inputs_frame = tk.Frame(config_card, bg=self.cores['white'])
         inputs_frame.pack(fill='x', padx=20, pady=20)
         
-        # Coluna 1
-        col1 = tk.Frame(inputs_frame, bg=self.cores['white'])
-        col1.pack(side='left', fill='both', expand=True, padx=(0, 20))
+        # Linha 1
+        row1 = tk.Frame(inputs_frame, bg=self.cores['white'])
+        row1.pack(fill='x', pady=5)
         
-        self.num_temas = self.criar_input_estilizado(col1, "📚 Número de Temas", "2", 1, 10)
+        # Temas
+        tk.Label(row1, text="📚 Temas:", font=('Segoe UI', 11),
+                bg=self.cores['white'], fg=self.cores['dark']).pack(side='left', padx=(0, 10))
         
-        # Coluna 2
-        col2 = tk.Frame(inputs_frame, bg=self.cores['white'])
-        col2.pack(side='left', fill='both', expand=True)
+        self.num_temas = tk.Spinbox(row1, from_=1, to=10, width=8,
+                                    font=('Segoe UI', 11), relief='flat')
+        self.num_temas.pack(side='left')
+        self.num_temas.delete(0, 'end')
+        self.num_temas.insert(0, "2")
         
-        self.num_perguntas = self.criar_input_estilizado(col2, "❓ Perguntas por Tema", "2", 1, 6)
+        # Espaço
+        tk.Label(row1, text=" " * 15, bg=self.cores['white']).pack(side='left')
         
-        # ===== CARD DE AÇÃO =====
+        # Perguntas
+        tk.Label(row1, text="❓ Perguntas:", font=('Segoe UI', 11),
+                bg=self.cores['white'], fg=self.cores['dark']).pack(side='left', padx=(0, 10))
+        
+        self.num_perguntas = tk.Spinbox(row1, from_=1, to=6, width=8,
+                                        font=('Segoe UI', 11), relief='flat')
+        self.num_perguntas.pack(side='left')
+        self.num_perguntas.delete(0, 'end')
+        self.num_perguntas.insert(0, "2")
+        
+        # ===== CARD AÇÃO =====
         acao_card = self.criar_card(main, "🎮 Controles", self.cores['warning'])
         
         btn_frame = tk.Frame(acao_card, bg=self.cores['white'])
         btn_frame.pack(pady=25)
         
-        self.btn_iniciar = self.criar_botao(btn_frame, "▶ INICIAR AUTOMAÇÃO", 
+        self.btn_iniciar = self.criar_botao(btn_frame, "▶ INICIAR", 
                                              self.iniciar, 'success')
         self.btn_iniciar.pack(side='left', padx=10)
         
@@ -193,14 +192,12 @@ class Interface:
                                           self.parar, 'danger', 'disabled')
         self.btn_parar.pack(side='left', padx=10)
         
-        # ===== CARD DE LOG =====
+        # ===== CARD LOG =====
         log_card = self.criar_card(main, "📋 Log de Execução", self.cores['gray'])
         
-        # Frame do log com scroll
         log_container = tk.Frame(log_card, bg=self.cores['white'])
         log_container.pack(fill='both', expand=True, padx=20, pady=(0, 20))
         
-        # Scrollbar estilizada
         scrollbar = tk.Scrollbar(log_container, bg=self.cores['light'])
         scrollbar.pack(side='right', fill='y')
         
@@ -213,7 +210,7 @@ class Interface:
         self.log_text.pack(side='left', fill='both', expand=True)
         scrollbar.config(command=self.log_text.yview)
         
-        # Configurar tags de cor para o log
+        # Cores do log
         self.log_text.tag_config('info', foreground=self.cores['primary'])
         self.log_text.tag_config('error', foreground=self.cores['danger'])
         self.log_text.tag_config('warning', foreground='#F18F01')
@@ -230,24 +227,23 @@ class Interface:
                                 bg=self.cores['light'], fg=self.cores['gray'])
         status_label.pack(side='left', padx=15, pady=10)
         
-        # Indicador de status
+        # Indicador
         self.status_icon = tk.Label(status_bar, text="●", 
                                     font=('Segoe UI', 10),
                                     bg=self.cores['light'], fg=self.cores['success'])
         self.status_icon.pack(side='right', padx=15, pady=10)
         
-        # Dica rápida
-        dica = tk.Label(status_bar, text="💡 Dica: O Edge será aberto e fechado automaticamente",
-                       font=('Segoe UI', 8, 'italic'),
+        # Dica
+        dica = tk.Label(status_bar, text="💡 Edge será aberto e fechado automaticamente",
+                       font=('Segoe UI', 8),
                        bg=self.cores['light'], fg=self.cores['gray'])
         dica.pack(side='right', padx=15, pady=10)
         
-        # Animação do ícone (muda a cada 2 segundos)
+        # Animação ícone
         self.animar_icone()
     
     def animar_icone(self):
-        """Animação suave do ícone"""
-        icones = ["🤖", "🔍", "⚡", "🚀", "💡", "🎯"]
+        icones = ["🤖", "🔍", "⚡", "🚀"]
         if hasattr(self, 'icon_index'):
             self.icon_index = (self.icon_index + 1) % len(icones)
         else:
@@ -257,30 +253,22 @@ class Interface:
         self.root.after(2000, self.animar_icone)
     
     def log(self, msg, tipo='info'):
-        """Adiciona mensagem ao log com cor"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         
-        # Ícones para cada tipo
-        icones = {
-            'info': 'ℹ️',
-            'error': '❌',
-            'warning': '⚠️',
-            'success': '✅'
-        }
-        
+        icones = {'info': 'ℹ️', 'error': '❌', 'warning': '⚠️', 'success': '✅'}
         icon = icones.get(tipo, '📌')
+        
         self.log_text.insert(tk.END, f"[{timestamp}] {icon} {msg}\n", tipo)
         self.log_text.see(tk.END)
         self.root.update_idletasks()
     
     def atualizar_status_ui(self, tipo, *args):
-        """Callback para atualizar interface durante execução"""
         if tipo == "progresso":
             idx, total = args
             percent = (idx / total) * 100
             self.status_var.set(f"🔄 Progresso: {idx}/{total} ({percent:.0f}%)")
             self.status_icon.config(fg=self.cores['warning'], text="▶")
-            self.log(f"Pesquisa {idx}/{total} concluída", 'info')
+            self.log(f"Pesquisa {idx}/{total}", 'info')
         elif tipo == "info":
             self.log(args[0], 'info')
         elif tipo == "erro":
@@ -293,30 +281,25 @@ class Interface:
             num_perguntas = int(self.num_perguntas.get())
             
             if num_temas < 1 or num_temas > 10:
-                messagebox.showerror("Erro", "Número de temas inválido (1-10)")
+                messagebox.showerror("Erro", "Temas inválido (1-10)")
                 return
             
             if num_perguntas < 1 or num_perguntas > 6:
-                messagebox.showerror("Erro", "Número de perguntas inválido (1-6)")
+                messagebox.showerror("Erro", "Perguntas inválido (1-6)")
                 return
             
-            # Desabilitar controles
             self.btn_iniciar.config(state='disabled')
             self.btn_parar.config(state='normal')
             self.num_temas.config(state='disabled')
             self.num_perguntas.config(state='disabled')
             
-            # Limpar log e iniciar
             self.log_text.delete(1.0, tk.END)
             self.log("🚀 Iniciando AutoPes V2...", 'info')
-            self.log("⚙️ Preparando automação...", 'info')
-            self.log("🌐 Verificando conexão...", 'info')
-            self.log("📡 Conectado! Abrindo navegador...", 'success')
+            self.log("📡 Abrindo navegador...", 'info')
             
-            self.status_var.set("🔄 Executando automação...")
+            self.status_var.set("🔄 Executando...")
             self.status_icon.config(fg=self.cores['warning'], text="▶")
             
-            # Iniciar thread
             thread = threading.Thread(target=self._executar, args=(num_temas, num_perguntas), daemon=True)
             thread.start()
             
@@ -328,28 +311,27 @@ class Interface:
         self.root.after(0, self._finalizar, sucesso)
     
     def _finalizar(self, sucesso):
-        # Restaurar controles
         self.btn_iniciar.config(state='normal')
         self.btn_parar.config(state='disabled')
         self.num_temas.config(state='normal')
         self.num_perguntas.config(state='normal')
         
         if sucesso:
-            self.log("🎉 Automação concluída com sucesso!", 'success')
-            self.status_var.set("✅ Automação finalizada com sucesso!")
+            self.log("🎉 Automação concluída!", 'success')
+            self.status_var.set("✅ Concluído!")
             self.status_icon.config(fg=self.cores['success'], text="●")
-            messagebox.showinfo("Sucesso", "✅ Automação finalizada!\n\nOs resultados foram salvos em CSV.")
+            messagebox.showinfo("Sucesso", "Automação finalizada!")
         else:
-            self.log("⚠️ Automação concluída com falhas", 'warning')
-            self.status_var.set("⚠️ Automação concluída com falhas")
+            self.log("⚠️ Concluído com falhas", 'warning')
+            self.status_var.set("⚠️ Concluído com falhas")
             self.status_icon.config(fg=self.cores['danger'], text="●")
-            messagebox.showwarning("Atenção", "⚠️ Algumas pesquisas falharam.\n\nVerifique o log.")
+            messagebox.showwarning("Atenção", "Algumas falhas ocorreram")
     
     def parar(self):
         if hasattr(self, 'automacao') and self.automacao.executando:
             self.automacao.parar()
-            self.log("⏹️ Parando automação...", 'warning')
-            self.status_var.set("⏹️ Parando automação...")
+            self.log("⏹️ Parando...", 'warning')
+            self.status_var.set("⏹️ Parando...")
     
     def run(self):
         self.root.mainloop()
