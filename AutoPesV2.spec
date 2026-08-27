@@ -5,7 +5,7 @@ a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('config/settings.json', 'config')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -1,27 +1,23 @@
-"""
-Gerenciador de CSV
-"""
+"""Persistência dos resultados em CSV compatível com Excel."""
 
 import csv
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+from src.utils.paths import data_dir
+
 
 class CSVManager:
-    def __init__(self):
-        self.pasta = Path(__file__).parent.parent.parent / "data" / "resultados"
+    def __init__(self) -> None:
+        self.pasta = data_dir() / "resultados"
         self.pasta.mkdir(parents=True, exist_ok=True)
-    
-    def salvar(self, resultados):
+
+    def salvar(self, resultados: list[dict[str, str]]) -> Path | None:
         if not resultados:
-            return False
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        arquivo = self.pasta / f"resultados_{timestamp}.csv"
-        
-        with open(arquivo, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=['tema', 'pergunta', 'status'])
-            writer.writeheader()
-            writer.writerows(resultados)
-        
-        print(f"✅ Resultados salvos: {arquivo}")
-        return True
+            return None
+        arquivo = self.pasta / f"resultados_{datetime.now():%Y%m%d_%H%M%S}.csv"
+        with arquivo.open("w", newline="", encoding="utf-8-sig") as destino:
+            escritor = csv.DictWriter(destino, fieldnames=["tema", "pergunta", "status", "erro"], extrasaction="ignore")
+            escritor.writeheader()
+            escritor.writerows(resultados)
+        return arquivo

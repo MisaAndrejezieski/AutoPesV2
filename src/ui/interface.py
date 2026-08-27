@@ -5,14 +5,17 @@ Interface Dark Mode com Neon - Centralizada com Rodapé
 import tkinter as tk
 from tkinter import messagebox
 import threading
+from queue import Empty, Queue
 from datetime import datetime
 
 class Interface:
     def __init__(self, automacao):
         self.automacao = automacao
+        self.eventos_ui = Queue()
         self.root = tk.Tk()
         self.setup_janela()
         self.setup_widgets()
+        self.root.after(100, self._processar_eventos)
     
     def setup_janela(self):
         self.root.title("AutoPes V2")
@@ -68,7 +71,7 @@ class Interface:
         row1.pack(pady=4)
         tk.Label(row1, text="TEMAS:", font=('Consolas', 10, 'bold'),
                 bg=self.cores['bg_card'], fg=self.cores['neon_yellow']).pack(side='left', padx=(0, 15))
-        self.num_temas = tk.Spinbox(row1, from_=1, to=10, width=6,
+        self.num_temas = tk.Spinbox(row1, from_=1, to=len(self.automacao.config['temas']), width=6,
                                     font=('Consolas', 11),
                                     bg=self.cores['input_bg'], fg=self.cores['neon_green'],
                                     relief='flat')
@@ -81,13 +84,13 @@ class Interface:
         row2.pack(pady=8)
         tk.Label(row2, text="PERGUNTAS POR TEMA:", font=('Consolas', 10, 'bold'),
                 bg=self.cores['bg_card'], fg=self.cores['neon_yellow']).pack(side='left', padx=(0, 15))
-        self.num_perguntas = tk.Spinbox(row2, from_=1, to=6, width=6,
+        self.num_perguntas = tk.Spinbox(row2, from_=1, to=len(self.automacao.config['perguntas']), width=6,
                                         font=('Consolas', 11),
                                         bg=self.cores['input_bg'], fg=self.cores['neon_green'],
                                         relief='flat')
         self.num_perguntas.pack(side='left')
         self.num_perguntas.delete(0, 'end')
-        self.num_perguntas.insert(0, "6")
+        self.num_perguntas.insert(0, str(len(self.automacao.config['perguntas'])))
         
         tk.Frame(config_card, bg=self.cores['bg_card'], height=8).pack()
         
@@ -193,11 +196,28 @@ class Interface:
             self.log(args[0], 'info')
         elif tipo == "erro":
             self.log(args[0], 'error')
+
+    def _processar_eventos(self):
+        """Aplica na thread principal os eventos recebidos da automação."""
+        try:
+            while True:
+                tipo, *args = self.eventos_ui.get_nowait()
+                if tipo == "finalizar":
+                    self._finalizar(args[0])
+                else:
+                    self.atualizar_status_ui(tipo, *args)
+        except Empty:
+            pass
+        self.root.after(100, self._processar_eventos)
     
     def iniciar(self):
         try:
             num_temas = int(self.num_temas.get())
             num_perguntas = int(self.num_perguntas.get())
+            if not 1 <= num_temas <= len(self.automacao.config['temas']):
+                raise ValueError
+            if not 1 <= num_perguntas <= len(self.automacao.config['perguntas']):
+                raise ValueError
             
             self.btn_iniciar.config(state='disabled')
             self.btn_parar.config(state='normal')
@@ -215,28 +235,34 @@ class Interface:
             thread.start()
             
         except ValueError:
-            messagebox.showerror("Erro", "Digite números válidos")
+            messagebox.showerror("Erro", "Informe valores dentro dos limites exibidos.")
     
     def _executar(self, num_temas, num_perguntas):
-        sucesso = self.automacao.executar(num_temas, num_perguntas, self.atualizar_status_ui)
-        self.root.after(0, self._finalizar, sucesso)
+        relatorio = self.automacao.executar(num_temas, num_perguntas, self.eventos_ui.put)
+        self.eventos_ui.put(("finalizar", relatorio))
     
-    def _finalizar(self, sucesso):
+    def _finalizar(self, relatorio):
         self.btn_iniciar.config(state='normal')
         self.btn_parar.config(state='disabled')
         self.num_temas.config(state='normal')
         self.num_perguntas.config(state='normal')
         
-        if sucesso:
+        resumo = f"{relatorio.sucesso} concluída(s), {relatorio.falha} falha(s)."
+        if relatorio.cancelada:
+            self.log(resumo, 'warning')
+            self.log("Automação cancelada pelo usuário.", 'warning')
+            self.status_var.set("cancelled")
+            messagebox.showinfo("Cancelada", f"Automação interrompida. {resumo}")
+        elif relatorio.concluida:
             self.log("═" * 35, 'success')
-            self.log("Automação concluída!", 'success')
+            self.log(f"Automação concluída! {resumo}", 'success')
             self.status_var.set("completed")
-            messagebox.showinfo("Sucesso", "Automação finalizada!")
+            messagebox.showinfo("Sucesso", f"Automação finalizada! {resumo}")
         else:
             self.log("═" * 35, 'warning')
-            self.log("Concluída com falhas", 'warning')
+            self.log(f"Concluída com falhas. {resumo}", 'warning')
             self.status_var.set("errors")
-            messagebox.showwarning("Atenção", "Falhas ocorreram")
+            messagebox.showwarning("Atenção", f"Falhas ocorreram. {resumo}")
     
     def parar(self):
         if hasattr(self, 'automacao') and self.automacao.executando:

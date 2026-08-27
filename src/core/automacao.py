@@ -1,139 +1,212 @@
-"""
-Automação principal
-"""
+"""Serviço de automação de pesquisas executado fora da thread da interface."""
 
-import random
-import time
+from __future__ import annotations
+
 import json
+import os
+import random
 import subprocess
+import threading
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
+from urllib.parse import quote_plus
 
 import pyautogui
 import requests
 
-from src.utils.logger import get_logger
 from src.utils.csv_manager import CSVManager
+from src.utils.logger import get_logger
+from src.utils.paths import RESOURCE_DIR, data_dir
+
+
+Callback = Callable[..., None]
+
+
+@dataclass(frozen=True)
+class RelatorioExecucao:
+    """Resumo imutável devolvido ao fim de uma execução."""
+
+    concluida: bool
+    cancelada: bool
+    sucesso: int
+    falha: int
+    arquivo_csv: Path | None = None
+
 
 class Automacao:
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = get_logger()
         self.csv_manager = CSVManager()
         self.config = self._load_config()
-        self.resultados = []
+        self.resultados: list[dict[str, str]] = []
         self.executando = False
-        
+        self._parar_evento = threading.Event()
+        self._processo_edge: subprocess.Popen | None = None
         pyautogui.FAILSAFE = True
-    
-    def _load_config(self):
-        config_path = Path(__file__).parent.parent.parent / "config" / "settings.json"
+        pyautogui.PAUSE = 0.05
+
+    def _load_config(self) -> dict:
+        caminho = RESOURCE_DIR / "config" / "settings.json"
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
+            with caminho.open("r", encoding="utf-8") as arquivo:
+                config = json.load(arquivo)
+            self._validar_config(config)
+            return config
+        except (OSError, json.JSONDecodeError, ValueError) as erro:
+            self.logger.warning("Configuração inválida (%s). Usando valores padrão.", erro)
             return {
-                "timeouts": {"abrir_navegador": 3, "minimo_pagina": 8, "entre_pesquisas": [5, 10]},
-                "temas": ["tecnologia", "saude"],
-                "perguntas": ["O que é {tema}?"]
+                "timeouts": {"abrir_navegador": 3, "entre_teclas": 0.05,
+                             "minimo_pagina": 8, "entre_pesquisas": [5, 10], "tentativas": 3},
+                "temas": ["tecnologia", "saúde"],
+                "perguntas": ["O que é {tema}?"],
             }
-    
-    def gerar_pesquisas(self, num_temas, num_perguntas):
-        temas = self.config.get("temas", [])
-        perguntas_base = self.config.get("perguntas", [])
-        
-        num_temas = min(num_temas, len(temas))
-        num_perguntas = min(num_perguntas, len(perguntas_base))
-        
-        temas_escolhidos = random.sample(temas, num_temas)
+
+    @staticmethod
+    def _validar_config(config: dict) -> None:
+        if not isinstance(config, dict):
+            raise ValueError("A configuração deve ser um objeto JSON")
+        timeouts = config.get("timeouts", {})
+        intervalo = timeouts.get("entre_pesquisas", [])
+        obrigatorios = {"abrir_navegador", "entre_teclas", "minimo_pagina", "tentativas"}
+        if not isinstance(timeouts, dict) or not obrigatorios.issubset(timeouts):
+            raise ValueError("Tempos de execução incompletos")
+        if not config.get("temas") or not config.get("perguntas"):
+            raise ValueError("'temas' e 'perguntas' não podem estar vazios")
+        if len(intervalo) != 2 or any(float(valor) < 0 for valor in intervalo):
+            raise ValueError("'entre_pesquisas' deve conter dois tempos não negativos")
+        if float(intervalo[0]) > float(intervalo[1]):
+            raise ValueError("O intervalo mínimo não pode ser maior que o máximo")
+
+    def gerar_pesquisas(self, num_temas: int, num_perguntas: int) -> list[dict[str, str]]:
+        if num_temas < 1 or num_perguntas < 1:
+            raise ValueError("A quantidade de temas e perguntas deve ser maior que zero.")
+
+        temas = self.config["temas"]
+        perguntas_base = self.config["perguntas"]
+        temas_escolhidos = random.sample(temas, min(num_temas, len(temas)))
         pesquisas = []
-        
         for tema in temas_escolhidos:
-            perguntas = random.sample(perguntas_base, num_perguntas)
-            for pergunta in perguntas:
-                pesquisas.append({
-                    'tema': tema,
-                    'pergunta': pergunta.format(tema=tema)
-                })
-        
+            for pergunta in random.sample(perguntas_base, min(num_perguntas, len(perguntas_base))):
+                pesquisas.append({"tema": tema, "pergunta": pergunta.format(tema=tema)})
         return pesquisas
-    
-    def verificar_internet(self):
+
+    def verificar_internet(self) -> bool:
         try:
-            requests.get('https://www.google.com', timeout=5)
+            resposta = requests.get("https://www.bing.com", timeout=5)
+            resposta.raise_for_status()
             return True
-        except:
+        except requests.RequestException as erro:
+            self.logger.warning("Não foi possível verificar a conexão: %s", erro)
             return False
-    
-    def abrir_edge(self):
+
+    @staticmethod
+    def _localizar_edge() -> str:
+        candidatos = [
+            Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        ]
+        for caminho in candidatos:
+            if caminho.is_file():
+                return str(caminho)
+        return "msedge.exe"
+
+    def _esperar(self, segundos: float) -> bool:
+        """Espera de modo cancelável; retorna False se o usuário pediu parada."""
+        return not self._parar_evento.wait(max(0, segundos))
+
+    def abrir_edge(self) -> bool:
         try:
-            subprocess.run(['taskkill', '/IM', 'msedge.exe', '/F'], capture_output=True)
-            time.sleep(1)
-            subprocess.Popen(['start', 'msedge'], shell=True)
-            time.sleep(self.config['timeouts']['abrir_navegador'])
-            return True
-        except:
+            perfil = data_dir() / "edge-profile"
+            perfil.mkdir(parents=True, exist_ok=True)
+            flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            self._processo_edge = subprocess.Popen(
+                [self._localizar_edge(), "--new-window", "--no-first-run", "--no-default-browser-check",
+                 f"--user-data-dir={perfil}", "https://www.bing.com"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags,
+            )
+            self.logger.info("Edge iniciado em perfil isolado (PID %s).", self._processo_edge.pid)
+            return self._esperar(float(self.config["timeouts"]["abrir_navegador"]))
+        except OSError:
+            self.logger.exception("Falha ao iniciar o Microsoft Edge.")
             return False
-    
-    def fazer_pesquisa(self, pergunta):
+
+    def fazer_pesquisa(self, pergunta: str) -> tuple[bool, str]:
+        """Pesquisa por URL codificada, inclusive para consultas com acentos."""
         try:
-            pyautogui.hotkey('ctrl', 't')
-            time.sleep(1)
-            pyautogui.write(pergunta)
-            time.sleep(0.5)
-            pyautogui.press('enter')
-            time.sleep(self.config['timeouts']['minimo_pagina'])
-            pyautogui.hotkey('ctrl', 'w')
-            return True
-        except:
-            return False
-    
-    def fechar_edge(self):
+            if self._parar_evento.is_set():
+                return False, "Cancelada pelo usuário"
+            url = f"https://www.bing.com/search?q={quote_plus(pergunta)}"
+            pyautogui.hotkey("ctrl", "l")
+            pyautogui.write(url, interval=float(self.config["timeouts"].get("entre_teclas", 0.05)))
+            pyautogui.press("enter")
+            if not self._esperar(float(self.config["timeouts"]["minimo_pagina"])):
+                return False, "Cancelada pelo usuário"
+            return True, ""
+        except pyautogui.PyAutoGUIException as erro:
+            self.logger.exception("Falha ao realizar pesquisa: %s", pergunta)
+            return False, str(erro)
+
+    def fechar_edge(self) -> None:
+        processo = self._processo_edge
+        self._processo_edge = None
+        if processo is None or processo.poll() is not None:
+            return
         try:
-            subprocess.run(['taskkill', '/IM', 'msedge.exe', '/F'], capture_output=True)
-            self.logger.info("Edge fechado")
-        except:
-            pass
-    
-    def executar(self, num_temas, num_perguntas, callback=None):
+            # Encerra somente a árvore iniciada por este aplicativo, nunca o Edge do usuário.
+            subprocess.run(["taskkill", "/PID", str(processo.pid), "/T", "/F"],
+                           capture_output=True, check=False, timeout=10)
+        except (OSError, subprocess.TimeoutExpired):
+            self.logger.exception("Não foi possível encerrar o Edge isolado.")
+        else:
+            self.logger.info("Edge isolado fechado.")
+
+    @staticmethod
+    def _notificar(callback: Callback | None, tipo: str, *args: object) -> None:
+        if callback:
+            callback(tipo, *args)
+
+    def executar(self, num_temas: int, num_perguntas: int, callback: Callback | None = None) -> RelatorioExecucao:
         self.executando = True
+        self._parar_evento.clear()
         self.resultados = []
-        
-        if not self.verificar_internet():
-            if callback: callback("erro", "Sem internet")
-            return False
-        
-        if not self.abrir_edge():
-            if callback: callback("erro", "Não abriu Edge")
-            return False
-        
         try:
             pesquisas = self.gerar_pesquisas(num_temas, num_perguntas)
-            total = len(pesquisas)
-            
-            for idx, p in enumerate(pesquisas, 1):
-                if not self.executando:
+            if not self.verificar_internet():
+                self._notificar(callback, "erro", "Sem conexão com a internet.")
+                return RelatorioExecucao(False, False, 0, 0)
+            self._notificar(callback, "info", "Abrindo navegador em perfil isolado...")
+            if not self.abrir_edge():
+                cancelada = self._parar_evento.is_set()
+                self._notificar(callback, "erro", "Execução cancelada." if cancelada else "Não foi possível abrir o Edge.")
+                return RelatorioExecucao(False, cancelada, 0, 0)
+
+            for indice, pesquisa in enumerate(pesquisas, start=1):
+                if self._parar_evento.is_set():
                     break
-                
-                if callback:
-                    callback("progresso", idx, total)
-                
-                sucesso = self.fazer_pesquisa(p['pergunta'])
-                
-                self.resultados.append({
-                    'tema': p['tema'],
-                    'pergunta': p['pergunta'],
-                    'status': 'OK' if sucesso else 'FALHA'
-                })
-                
-                if idx < total:
-                    intervalo = random.uniform(*self.config['timeouts']['entre_pesquisas'])
-                    time.sleep(intervalo)
-            
-            self.csv_manager.salvar(self.resultados)
-            return True
-            
+                self._notificar(callback, "progresso", indice, len(pesquisas))
+                sucesso, erro = self.fazer_pesquisa(pesquisa["pergunta"])
+                self.resultados.append({**pesquisa, "status": "OK" if sucesso else "FALHA", "erro": erro})
+                if indice < len(pesquisas) and not self._parar_evento.is_set():
+                    minimo, maximo = self.config["timeouts"]["entre_pesquisas"]
+                    if not self._esperar(random.uniform(float(minimo), float(maximo))):
+                        break
+
+            cancelada = self._parar_evento.is_set()
+            arquivo = self.csv_manager.salvar(self.resultados)
+            sucesso = sum(item["status"] == "OK" for item in self.resultados)
+            falha = len(self.resultados) - sucesso
+            if cancelada:
+                self._notificar(callback, "info", "Execução cancelada. Resultados parciais foram salvos.")
+            return RelatorioExecucao(not cancelada and falha == 0, cancelada, sucesso, falha, arquivo)
+        except (ValueError, KeyError, TypeError) as erro:
+            self.logger.exception("Configuração ou parâmetros inválidos.")
+            self._notificar(callback, "erro", str(erro))
+            return RelatorioExecucao(False, False, 0, 0)
         finally:
             self.fechar_edge()
             self.executando = False
-    
-    def parar(self):
-        self.executando = False
+
+    def parar(self) -> None:
+        self._parar_evento.set()

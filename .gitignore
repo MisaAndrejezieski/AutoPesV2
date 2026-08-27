@@ -5,6 +5,8 @@
 data/
 *.log
 *.csv
+build/
+dist/
 
 # Python
 __pycache__/
