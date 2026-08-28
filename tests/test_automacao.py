@@ -11,7 +11,7 @@ class AutomacaoTests(unittest.TestCase):
         self.automacao = Automacao()
         self.automacao.config = {
             "timeouts": {"abrir_navegador": 0, "entre_teclas": 0, "minimo_pagina": 0,
-                         "entre_pesquisas": [0, 0], "tentativas": 1},
+                         "entre_pesquisas": [0, 0]},
             "temas": ["tecnologia", "saúde"],
             "perguntas": ["O que é {tema}?", "Futuro do {tema}"],
         }

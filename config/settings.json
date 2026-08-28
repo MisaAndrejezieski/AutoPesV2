@@ -1,11 +1,9 @@
 {
-  "idioma": "pt",
   "timeouts": {
     "abrir_navegador": 3,
     "entre_teclas": 0.05,
     "minimo_pagina": 8,
-    "entre_pesquisas": [5, 10],
-    "tentativas": 3
+    "entre_pesquisas": [5, 10]
   },
   "temas": [
     "eletromecanica",

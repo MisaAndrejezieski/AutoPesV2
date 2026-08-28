@@ -57,7 +57,7 @@ class Automacao:
             self.logger.warning("Configuração inválida (%s). Usando valores padrão.", erro)
             return {
                 "timeouts": {"abrir_navegador": 3, "entre_teclas": 0.05,
-                             "minimo_pagina": 8, "entre_pesquisas": [5, 10], "tentativas": 3},
+                             "minimo_pagina": 8, "entre_pesquisas": [5, 10]},
                 "temas": ["tecnologia", "saúde"],
                 "perguntas": ["O que é {tema}?"],
             }
@@ -68,7 +68,7 @@ class Automacao:
             raise ValueError("A configuração deve ser um objeto JSON")
         timeouts = config.get("timeouts", {})
         intervalo = timeouts.get("entre_pesquisas", [])
-        obrigatorios = {"abrir_navegador", "entre_teclas", "minimo_pagina", "tentativas"}
+        obrigatorios = {"abrir_navegador", "entre_teclas", "minimo_pagina"}
         if not isinstance(timeouts, dict) or not obrigatorios.issubset(timeouts):
             raise ValueError("Tempos de execução incompletos")
         if not config.get("temas") or not config.get("perguntas"):
