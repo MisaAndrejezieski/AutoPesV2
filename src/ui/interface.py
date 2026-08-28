@@ -19,8 +19,8 @@ class Interface:
     
     def setup_janela(self):
         self.root.title("AutoPes V2")
-        self.root.geometry("600x580")
-        self.root.minsize(550, 530)
+        self.root.geometry("680x760")
+        self.root.minsize(600, 680)
         
         self.cores = {
             'bg': '#0D0D0D',
@@ -149,6 +149,21 @@ class Interface:
         self.log_text.tag_config('warning', foreground=self.cores['neon_yellow'])
         self.log_text.tag_config('success', foreground=self.cores['neon_green'])
         
+        # ===== PESQUISAS REALIZADAS =====
+        resultados_card = tk.Frame(content, bg=self.cores['bg_card'])
+        resultados_card.pack(pady=8, padx=40, fill='both', expand=True)
+
+        tk.Frame(resultados_card, bg=self.cores['neon_green'], height=2).pack(fill='x')
+        tk.Label(resultados_card, text="[ PESQUISAS REALIZADAS ]",
+                font=('Consolas', 11, 'bold'),
+                bg=self.cores['bg_card'], fg=self.cores['neon_green']).pack(pady=(12, 8))
+
+        self.resultados_text = tk.Text(resultados_card, height=7,
+                                       font=('Consolas', 9),
+                                       bg=self.cores['bg'], fg=self.cores['text'],
+                                       relief='flat', bd=0, wrap='word', state='disabled')
+        self.resultados_text.pack(fill='both', expand=True, padx=15, pady=(0, 15))
+
         # ===== RODAPÉ (CRÉDITOS) =====
         footer = tk.Frame(main, bg=self.cores['bg'], height=50)
         footer.pack(fill='x', side='bottom')
@@ -246,6 +261,7 @@ class Interface:
         self.btn_parar.config(state='disabled')
         self.num_temas.config(state='normal')
         self.num_perguntas.config(state='normal')
+        self.mostrar_resultados(relatorio)
         
         resumo = f"{relatorio.sucesso} concluída(s), {relatorio.falha} falha(s)."
         if relatorio.cancelada:
@@ -263,6 +279,26 @@ class Interface:
             self.log(f"Concluída com falhas. {resumo}", 'warning')
             self.status_var.set("errors")
             messagebox.showwarning("Atenção", f"Falhas ocorreram. {resumo}")
+
+    def mostrar_resultados(self, relatorio):
+        self.resultados_text.config(state='normal')
+        self.resultados_text.delete(1.0, tk.END)
+
+        for indice, resultado in enumerate(self.automacao.resultados, start=1):
+            self.resultados_text.insert(
+                tk.END,
+                f"{indice}. [{resultado['status']}] {resultado['tema']}\n"
+                f"   {resultado['pergunta']}\n",
+            )
+            if resultado['erro']:
+                self.resultados_text.insert(tk.END, f"   Erro: {resultado['erro']}\n")
+
+        if relatorio.arquivo_csv:
+            self.resultados_text.insert(tk.END, f"\nRelatorio CSV: {relatorio.arquivo_csv}")
+        elif not self.automacao.resultados:
+            self.resultados_text.insert(tk.END, "Nenhuma pesquisa foi concluida.")
+
+        self.resultados_text.config(state='disabled')
     
     def parar(self):
         if hasattr(self, 'automacao') and self.automacao.executando:

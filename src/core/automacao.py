@@ -119,6 +119,8 @@ class Automacao:
 
     def abrir_edge(self) -> bool:
         try:
+            if self._processo_edge is not None and self._processo_edge.poll() is None:
+                self.fechar_edge()
             perfil = data_dir() / "edge-profile"
             perfil.mkdir(parents=True, exist_ok=True)
             flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -138,7 +140,7 @@ class Automacao:
         try:
             if self._parar_evento.is_set():
                 return False, "Cancelada pelo usuário"
-            url = f"https://www.bing.com/search?q={quote_plus(pergunta)}"
+            url = self.url_pesquisa(pergunta)
             pyautogui.hotkey("ctrl", "l")
             pyautogui.write(url, interval=float(self.config["timeouts"].get("entre_teclas", 0.05)))
             pyautogui.press("enter")
@@ -148,6 +150,10 @@ class Automacao:
         except pyautogui.PyAutoGUIException as erro:
             self.logger.exception("Falha ao realizar pesquisa: %s", pergunta)
             return False, str(erro)
+
+    @staticmethod
+    def url_pesquisa(pergunta: str) -> str:
+        return f"https://www.bing.com/search?q={quote_plus(pergunta)}"
 
     def fechar_edge(self) -> None:
         processo = self._processo_edge
@@ -172,6 +178,7 @@ class Automacao:
         self.executando = True
         self._parar_evento.clear()
         self.resultados = []
+        manter_edge_aberto = False
         try:
             pesquisas = self.gerar_pesquisas(num_temas, num_perguntas)
             if not self.verificar_internet():
@@ -188,7 +195,12 @@ class Automacao:
                     break
                 self._notificar(callback, "progresso", indice, len(pesquisas))
                 sucesso, erro = self.fazer_pesquisa(pesquisa["pergunta"])
-                self.resultados.append({**pesquisa, "status": "OK" if sucesso else "FALHA", "erro": erro})
+                self.resultados.append({
+                    **pesquisa,
+                    "url": self.url_pesquisa(pesquisa["pergunta"]),
+                    "status": "OK" if sucesso else "FALHA",
+                    "erro": erro,
+                })
                 if indice < len(pesquisas) and not self._parar_evento.is_set():
                     minimo, maximo = self.config["timeouts"]["entre_pesquisas"]
                     if not self._esperar(random.uniform(float(minimo), float(maximo))):
@@ -200,13 +212,17 @@ class Automacao:
             falha = len(self.resultados) - sucesso
             if cancelada:
                 self._notificar(callback, "info", "Execução cancelada. Resultados parciais foram salvos.")
-            return RelatorioExecucao(not cancelada and falha == 0, cancelada, sucesso, falha, arquivo)
+            manter_edge_aberto = not cancelada and falha == 0
+            return RelatorioExecucao(manter_edge_aberto, cancelada, sucesso, falha, arquivo)
         except (ValueError, KeyError, TypeError) as erro:
             self.logger.exception("Configuração ou parâmetros inválidos.")
             self._notificar(callback, "erro", str(erro))
             return RelatorioExecucao(False, False, 0, 0)
         finally:
-            self.fechar_edge()
+            if manter_edge_aberto:
+                self._notificar(callback, "info", "Edge mantido aberto na ultima pagina pesquisada.")
+            else:
+                self.fechar_edge()
             self.executando = False
 
     def parar(self) -> None:

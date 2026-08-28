@@ -17,7 +17,11 @@ class CSVManager:
             return None
         arquivo = self.pasta / f"resultados_{datetime.now():%Y%m%d_%H%M%S}.csv"
         with arquivo.open("w", newline="", encoding="utf-8-sig") as destino:
-            escritor = csv.DictWriter(destino, fieldnames=["tema", "pergunta", "status", "erro"], extrasaction="ignore")
+            escritor = csv.DictWriter(
+                destino,
+                fieldnames=["tema", "pergunta", "url", "status", "erro"],
+                extrasaction="ignore",
+            )
             escritor.writeheader()
             escritor.writerows(resultados)
         return arquivo

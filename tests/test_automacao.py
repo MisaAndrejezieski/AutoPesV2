@@ -40,6 +40,8 @@ class AutomacaoTests(unittest.TestCase):
         self.assertTrue(relatorio.concluida)
         self.assertEqual((relatorio.sucesso, relatorio.falha), (1, 0))
         self.automacao.csv_manager.salvar.assert_called_once()
+        self.automacao.fechar_edge.assert_not_called()
+        self.assertTrue(self.automacao.resultados[0]["url"].startswith("https://www.bing.com/search?q="))
 
     def test_espera_e_interrompida_pelo_evento(self):
         self.automacao._parar_evento = threading.Event()
