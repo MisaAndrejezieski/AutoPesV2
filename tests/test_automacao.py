@@ -20,6 +20,9 @@ class AutomacaoTests(unittest.TestCase):
         pesquisas = self.automacao.gerar_pesquisas(2, 2)
         self.assertEqual(len(pesquisas), 4)
         self.assertTrue(all("{" not in item["pergunta"] for item in pesquisas))
+        for inicio in range(0, len(pesquisas), 2):
+            self.assertTrue(pesquisas[inicio]["pergunta"].startswith("O que"))
+            self.assertTrue(pesquisas[inicio + 1]["pergunta"].startswith("Futuro"))
 
     def test_rejeita_quantidades_invalidas(self):
         with self.assertRaises(ValueError):

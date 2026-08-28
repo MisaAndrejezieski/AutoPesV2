@@ -8,6 +8,7 @@
     "tentativas": 3
   },
   "temas": [
+    "eletromecanica",
     "tecnologia",
     "saude",
     "educacao",
@@ -16,9 +17,11 @@
     "musica"
   ],
   "perguntas": [
-    "O que é {tema}?",
-    "Ultimas noticias sobre {tema}",
-    "Impacto do {tema} na sociedade",
-    "Futuro do {tema}"
+    "Quais sao os fundamentos de {tema} para iniciantes?",
+    "Quais 20 por cento dos conceitos de {tema} explicam 80 por cento da pratica?",
+    "Quais componentes, processos ou principios sao mais importantes em {tema}?",
+    "Quais aplicacoes praticas ajudam a entender {tema}?",
+    "Quais erros comuns ao aprender {tema} e como evita-los?",
+    "Qual sequencia de estudo usar para aprender {tema} do basico ao pratico?"
   ]
 }

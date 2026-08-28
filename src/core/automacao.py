@@ -87,7 +87,8 @@ class Automacao:
         temas_escolhidos = random.sample(temas, min(num_temas, len(temas)))
         pesquisas = []
         for tema in temas_escolhidos:
-            for pergunta in random.sample(perguntas_base, min(num_perguntas, len(perguntas_base))):
+            # A ordem configurada forma uma trilha de estudo, dos fundamentos a pratica.
+            for pergunta in perguntas_base[:min(num_perguntas, len(perguntas_base))]:
                 pesquisas.append({"tema": tema, "pergunta": pergunta.format(tema=tema)})
         return pesquisas
 
